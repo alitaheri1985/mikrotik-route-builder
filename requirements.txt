@@ -1,5 +1,5 @@
-flask
-paramiko
-gunicorn
-flask_sqlalchemy
-psycopg2-binary
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+psycopg2-binary==2.9.7
+paramiko==3.3.1
+gunicorn==21.2.0

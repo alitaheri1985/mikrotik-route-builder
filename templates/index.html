@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MikroTik Route Builder</title>
+    <style>
+        body {font-family: Arial; background:#0f172a; color:#e2e8f0; padding:20px;}
+        input, textarea {width:100%; margin:8px 0; padding:10px; background:#1e293b; color:white; border:1px solid #334155;}
+        button {padding:10px; background:#2563eb; border:none; color:white; cursor:pointer; margin-top:5px;}
+        .terminal {background:black; color:#00ff00; padding:10px; margin-top:20px; height:220px; overflow:auto; font-family:monospace;}
+        .summary, .diff-box {margin-top:15px; background:#1e293b; padding:10px;}
+    </style>
+</head>
+<body>
+
+<h2>MikroTik Route Builder</h2>
+
+<label>Router IP</label>
+<input id="router_ip" placeholder="192.168.88.1">
+
+<label>Username</label>
+<input id="username" placeholder="admin">
+
+<label>Password</label>
+<input id="password" type="password">
+
+<hr>
+
+<label>Gateway</label>
+<input id="gateway">
+
+<label>Routing Table</label>
+<input id="table">
+
+<label>CIDR File</label>
+<input type="file" id="file">
+
+<button onclick="buildRoutes()">Build Routes From File</button>
+<button onclick="compareRoutes()">Compare With DB</button>
+
+<div class="summary" id="summary"></div>
+<div class="diff-box" id="diff"></div>
+
+<textarea id="command" rows="10" placeholder="Generated commands will appear here"></textarea>
+<button onclick="applyDiff()">Send to Router</button>
+
+<div class="terminal" id="terminal"></div>
+
+<script>
+async function buildRoutes() {
+    let formData = new FormData();
+    formData.append("file", document.getElementById("file").files[0]);
+    formData.append("gateway", document.getElementById("gateway").value);
+    formData.append("table", document.getElementById("table").value);
+
+    let res = await fetch("/build", {method:"POST", body:formData});
+    let data = await res.json();
+
+    document.getElementById("summary").innerText = "Unique routes: " + data.count;
+    document.getElementById("command").value = data.commands;
+}
+
+async function compareRoutes() {
+    let formData = new FormData();
+    formData.append("file", document.getElementById("file").files[0]);
+
+    let res = await fetch("/diff", {method:"POST", body:formData});
+    let data = await res.json();
+
+    document.getElementById("diff").innerHTML =
+        `<strong>Added:</strong> ${data.added.join(", ")}<br>
+         <strong>Removed:</strong> ${data.removed.join(", ")}<br>
+         <strong>Unchanged:</strong> ${data.unchanged}`;
+
+    // Generate commands for added/removed routes
+    let gateway = document.getElementById("gateway").value;
+    let table = document.getElementById("table").value;
+    let commands = "";
+    data.added.forEach(cidr => commands += `/ip route add dst-address=${cidr} gateway=${gateway} routing-table=${table}\n`);
+    data.removed.forEach(cidr => commands += `/ip route remove [find dst-address=${cidr}]\n`);
+    document.getElementById("command").value = commands;
+}
+
+async function applyDiff() {
+    let commands = document.getElementById("command").value.split("\n").filter(line => line.trim() !== "");
+
+    let res = await fetch("/apply-diff", {
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({
+            router_ip: document.getElementById("router_ip").value,
+            username: document.getElementById("username").value,
+            password: document.getElementById("password").value,
+            commands: commands
+        })
+    });
+
+    let data = await res.json();
+    document.getElementById("terminal").innerText = data.output;
+}
+</script>
+
+</body>
+</html>

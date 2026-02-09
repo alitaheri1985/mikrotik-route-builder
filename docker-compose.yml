@@ -1,0 +1,35 @@
+#version: "3.9"
+
+services:
+  route-builder:
+    build: .
+    container_name: mikrotik-route-builder
+    ports:
+      - "5000:5000"
+    environment:
+      WEB_USER: admin
+      WEB_PASS: supersecret
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: routebuilder
+      DB_HOST: db
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/mikrotik
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: postgres:15
+    container_name: mikrotik-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: routebuilder
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:

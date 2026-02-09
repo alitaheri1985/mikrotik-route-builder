@@ -1,0 +1,5 @@
+flask
+paramiko
+gunicorn
+flask_sqlalchemy
+psycopg2-binary
